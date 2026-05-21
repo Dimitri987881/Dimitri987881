@@ -1,0 +1,5 @@
+# .env contient tes clés API — ne jamais commiter !
+.env
+workflows/*.ready.json
+review-*.md
+suggestions.md
