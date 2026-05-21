@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# Hook post-commit: génère une entrée CHANGELOG via Claude (si disponible)
+
+LAST_COMMIT=$(git log -1 --pretty=format:"%s")
+CHANGELOG="CHANGELOG.md"
+
+if ! command -v claude &> /dev/null; then
+  exit 0
+fi
+
+CHANGED_FILES=$(git diff-tree --no-commit-id -r --name-only HEAD)
+
+if echo "$CHANGED_FILES" | grep -q "n8n-affiliate-workflow.json"; then
+  PROMPT="Génère une entrée CHANGELOG concise en français pour ce commit git sur un workflow n8n d'affiliation automatisée. Format: '## $(date +%Y-%m-%d) — <résumé en 1 ligne>\n- <détail 1>\n- <détail 2>'. Commit: $LAST_COMMIT"
+
+  ENTRY=$(echo "$PROMPT" | claude --print 2>/dev/null || true)
+
+  if [[ -n "$ENTRY" ]]; then
+    {
+      echo "$ENTRY"
+      echo ""
+      if [[ -f "$CHANGELOG" ]]; then
+        cat "$CHANGELOG"
+      fi
+    } > "${CHANGELOG}.tmp" && mv "${CHANGELOG}.tmp" "$CHANGELOG"
+
+    echo "📝 CHANGELOG mis à jour automatiquement"
+  fi
+fi
+
+exit 0

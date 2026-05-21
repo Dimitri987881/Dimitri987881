@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# Hook pre-commit: bloque le commit si le workflow n8n JSON est invalide
+
+WORKFLOW="workflows/n8n-affiliate-workflow.json"
+
+if [[ ! -f "$WORKFLOW" ]]; then
+  exit 0
+fi
+
+if git diff --cached --name-only | grep -q "n8n-affiliate-workflow.json"; then
+  echo "🔍 Validation du workflow n8n modifié..."
+
+  if ! python3 -m json.tool "$WORKFLOW" > /dev/null 2>&1; then
+    echo ""
+    echo "❌ COMMIT BLOQUÉ: $WORKFLOW contient du JSON invalide"
+    echo ""
+    echo "   Vérifiez l'erreur avec :"
+    echo "   python3 -m json.tool $WORKFLOW"
+    echo ""
+    exit 1
+  fi
+
+  echo "✅ Workflow JSON valide — commit autorisé"
+fi
+
+exit 0
