@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip,
   ResponsiveContainer, CartesianGrid,
@@ -11,6 +11,21 @@ const PILLARS = [
     tech: ["Claude Haiku", "Google Trends", "Telegram"],
     rev: [0, 150, 600, 2000], color: "#1D9E75", status: "ACTIF",
     detail: "3 scripts/jour × 3 marchés = 9 contenus automatiques",
+    n8nUrl: "http://YOUR_VPS:5678/workflow/1",
+    webhookStatus: "online",
+    logPool: [
+      "06:00:01 ✅ Trend FR détecté — 'perte de poids rapide'",
+      "06:00:03 ✅ Script FR généré — 'Top 5 suppléments minceur 2025'",
+      "06:00:05 ✅ Script EN généré — 'Best fat burners ranked'",
+      "06:00:07 ✅ Script DE généré — 'Abnehmen Tipps 2025'",
+      "06:00:09 📤 3 scripts envoyés → Telegram",
+      "06:00:11 🔗 Liens ClickBank injectés × 3",
+      "06:00:13 💤 Prochain cycle dans 8h",
+      "14:00:01 ✅ Trend EN détecté — 'passive income ideas'",
+      "14:00:04 ✅ Script EN généré — 'Make $500/day with AI'",
+      "14:00:06 ✅ Script FR généré — 'Revenus passifs IA 2025'",
+      "14:00:08 📤 2 scripts envoyés → Telegram",
+    ],
   },
   {
     id: 2, icon: "🤖", label: "Master Agent Bot",
@@ -18,6 +33,20 @@ const PILLARS = [
     tech: ["n8n", "Claude Haiku", "Google Sheets"],
     rev: [0, 0, 200, 800], color: "#534AB7", status: "ACTIF",
     detail: "/stats /commissions /script [topic] — réponse instantanée",
+    n8nUrl: "http://YOUR_VPS:5678/workflow/2",
+    webhookStatus: "online",
+    logPool: [
+      "09:14:22 📥 /stats reçu — user @dimitri",
+      "09:14:23 📊 Sheets lus — 3 lignes commission",
+      "09:14:24 📤 Réponse envoyée: 42.50€ today",
+      "11:30:05 📥 /script 'dropshipping' reçu",
+      "11:30:06 🤖 Claude Haiku appelé...",
+      "11:30:09 ✅ Script généré (847 tokens)",
+      "11:30:10 📤 Script envoyé → Telegram",
+      "15:02:18 📥 /commissions reçu",
+      "15:02:19 📊 Digistore24 webhook — 1 vente 37€",
+      "15:02:20 📤 Rapport envoyé → Telegram",
+    ],
   },
   {
     id: 3, icon: "🎥", label: "Sora Vidéo Auto",
@@ -25,6 +54,15 @@ const PILLARS = [
     tech: ["Sora API", "OpenAI", "Telegram"],
     rev: [0, 50, 400, 1500], color: "#BA7517", status: "SETUP",
     detail: "Génération vidéo IA automatique — animaux/viral content",
+    n8nUrl: "http://YOUR_VPS:5678/workflow/3",
+    webhookStatus: "pending",
+    logPool: [
+      "⚙️  Workflow non encore activé",
+      "⏳ En attente de clé Sora API",
+      "📋 Prompt template prêt: 'cute cat doing...'",
+      "📋 Cible: 1 vidéo/jour × 3 comptes",
+      "💡 Prochain: configurer webhook Telegram",
+    ],
   },
   {
     id: 4, icon: "⚙️", label: "Make.com Stack",
@@ -32,6 +70,16 @@ const PILLARS = [
     tech: ["Make.com", "Notion", "Google Drive"],
     rev: [0, 0, 100, 500], color: "#185FA5", status: "SETUP",
     detail: "Digest quotidien + alerte commission + sync analytics",
+    n8nUrl: null,
+    webhookStatus: "pending",
+    logPool: [
+      "⚙️  W1 Daily Digest — non configuré",
+      "⚙️  W2 Alerte vente Digistore — non configuré",
+      "⚙️  W3 Sync Google Drive → Notion — non configuré",
+      "📋 W4 Analytics hebdo — template prêt",
+      "⏳ Connexion Make.com → n8n à faire",
+      "💡 Free plan: 1000 ops/mois suffisantes",
+    ],
   },
   {
     id: 5, icon: "📦", label: "Actifs Digitaux",
@@ -39,13 +87,22 @@ const PILLARS = [
     tech: ["Gumroad", "Brevo", "Systeme.io"],
     rev: [0, 80, 300, 1200], color: "#993C1D", status: "FUTUR",
     detail: "Produits créés 1x → vendus à l'infini",
+    n8nUrl: null,
+    webhookStatus: "offline",
+    logPool: [
+      "📦 Produit 1: 'Pack 50 Prompts TikTok IA' — draft",
+      "📦 Produit 2: 'Template n8n Affiliation' — draft",
+      "📦 Produit 3: 'Guide Digistore24 FR' — idée",
+      "💡 Prix cible: 17–37€/produit",
+      "⏳ Lancement après 100€/j validés",
+    ],
   },
 ];
 
 const PHASES = [
-  { label: "BOOT J1–14",    total: 280,   fr: 150,  en: 80,   de: 50   },
-  { label: "GROW J15–60",   total: 1130,  fr: 500,  en: 380,  de: 250  },
-  { label: "SCALE J61–120", total: 4600,  fr: 1600, en: 1800, de: 1200 },
+  { label: "BOOT J1–14",      total: 280,   fr: 150,  en: 80,   de: 50   },
+  { label: "GROW J15–60",     total: 1130,  fr: 500,  en: 380,  de: 250  },
+  { label: "SCALE J61–120",   total: 4600,  fr: 1600, en: 1800, de: 1200 },
   { label: "EMPIRE J121–180", total: 12000, fr: 3500, en: 5000, de: 3500 },
 ];
 
@@ -72,6 +129,52 @@ const statusColor = (s) =>
   s === "ACTIF" ? "#1D9E75" : s === "SETUP" ? "#BA7517" : "#888780";
 const statusBg = (s) =>
   s === "ACTIF" ? "#E1F5EE" : s === "SETUP" ? "#FAEEDA" : "#F1EFE8";
+
+const WH_DOT = { online: "#1D9E75", pending: "#BA7517", offline: "#cc4444" };
+const WH_LABEL = { online: "webhook actif", pending: "en attente", offline: "inactif" };
+
+function LogFeed({ pool, color }) {
+  const [lines, setLines] = useState(() => pool.slice(0, 4));
+  const idxRef = useRef(4);
+
+  useEffect(() => {
+    if (pool.length <= 4) return;
+    const t = setInterval(() => {
+      const next = pool[idxRef.current % pool.length];
+      idxRef.current++;
+      setLines((prev) => [...prev.slice(-4), next]);
+    }, 2200);
+    return () => clearInterval(t);
+  }, [pool]);
+
+  return (
+    <div style={{
+      background: "#0f1117",
+      borderRadius: "var(--border-radius-md)",
+      padding: "10px 12px",
+      fontFamily: "monospace",
+      fontSize: 10,
+      lineHeight: 1.8,
+      minHeight: 88,
+      overflow: "hidden",
+    }}>
+      <div style={{ color: "#555", marginBottom: 4, fontSize: 9, letterSpacing: "0.05em" }}>
+        LIVE LOGS ▸
+      </div>
+      {lines.map((l, i) => (
+        <div
+          key={i}
+          style={{
+            color: i === lines.length - 1 ? color : "#6b7280",
+            transition: "color 0.4s",
+          }}
+        >
+          {l}
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function App() {
   const [tab, setTab] = useState("overview");
@@ -101,7 +204,7 @@ export default function App() {
         borderRadius: "var(--border-radius-lg)",
         padding: "16px 20px",
       }}>
-        <div style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.02em", color: "var(--color-text-primary)" }}>
+        <div style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.02em" }}>
           NEXUS EMPIRE — Système Multi-Revenus
         </div>
         <div style={{ fontSize: 11, color: "var(--color-text-secondary)", marginTop: 3 }}>
@@ -112,18 +215,14 @@ export default function App() {
       {/* Tabs */}
       <div style={{ display: "flex", gap: 6 }}>
         {["overview", "revenus", "setup"].map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            style={{
-              padding: "5px 14px", fontSize: 11, fontFamily: "inherit",
-              background: tab === t ? "var(--color-text-primary)" : "transparent",
-              color: tab === t ? "var(--color-background-primary)" : "var(--color-text-secondary)",
-              border: "0.5px solid var(--color-border-secondary)",
-              borderRadius: "var(--border-radius-md)",
-              cursor: "pointer", textTransform: "uppercase", letterSpacing: "0.05em",
-            }}
-          >
+          <button key={t} onClick={() => setTab(t)} style={{
+            padding: "5px 14px", fontSize: 11, fontFamily: "inherit",
+            background: tab === t ? "var(--color-text-primary)" : "transparent",
+            color: tab === t ? "var(--color-background-primary)" : "var(--color-text-secondary)",
+            border: "0.5px solid var(--color-border-secondary)",
+            borderRadius: "var(--border-radius-md)",
+            cursor: "pointer", textTransform: "uppercase", letterSpacing: "0.05em",
+          }}>
             {t}
           </button>
         ))}
@@ -133,10 +232,7 @@ export default function App() {
       {tab === "overview" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
 
-          {/* Metrics */}
-          <div style={{
-            display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 8,
-          }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 8 }}>
             {[
               { l: "Piliers",    v: "5 (2 actifs)" },
               { l: "Marchés",    v: "FR · EN · DE" },
@@ -150,17 +246,12 @@ export default function App() {
                 borderRadius: "var(--border-radius-md)",
                 padding: "10px 8px", textAlign: "center",
               }}>
-                <div style={{ fontSize: 9, color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 4 }}>
-                  {m.l}
-                </div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: "var(--color-text-primary)" }}>
-                  {m.v}
-                </div>
+                <div style={{ fontSize: 9, color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 4 }}>{m.l}</div>
+                <div style={{ fontSize: 12, fontWeight: 700 }}>{m.v}</div>
               </div>
             ))}
           </div>
 
-          {/* Pillars */}
           {PILLARS.map((p) => (
             <div key={p.id}>
               <div
@@ -168,7 +259,9 @@ export default function App() {
                 style={{
                   background: "var(--color-background-primary)",
                   border: "0.5px solid var(--color-border-tertiary)",
-                  borderRadius: "var(--border-radius-lg)",
+                  borderRadius: sel?.id === p.id
+                    ? "var(--border-radius-lg) var(--border-radius-lg) 0 0"
+                    : "var(--border-radius-lg)",
                   padding: "12px 14px",
                   cursor: "pointer",
                   borderLeft: `3px solid ${p.color}`,
@@ -177,6 +270,15 @@ export default function App() {
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                   <span style={{ fontSize: 18 }}>{p.icon}</span>
                   <span style={{ fontSize: 13, fontWeight: 600 }}>{p.label}</span>
+
+                  {/* Webhook dot */}
+                  <span title={WH_LABEL[p.webhookStatus]} style={{
+                    width: 7, height: 7, borderRadius: "50%",
+                    background: WH_DOT[p.webhookStatus],
+                    display: "inline-block",
+                    boxShadow: p.webhookStatus === "online" ? `0 0 0 2px ${WH_DOT.online}33` : "none",
+                  }} />
+
                   <span style={{
                     marginLeft: "auto", fontSize: 9, fontWeight: 700,
                     color: statusColor(p.status), background: statusBg(p.status),
@@ -186,8 +288,18 @@ export default function App() {
                   </span>
                 </div>
                 <div style={{ fontSize: 11, color: "var(--color-text-secondary)", marginBottom: 4 }}>{p.desc}</div>
-                <div style={{ fontSize: 11, color: p.color, fontWeight: 600 }}>
-                  J180: {p.rev[3].toLocaleString()}€/j
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={{ fontSize: 10, color: "var(--color-text-secondary)" }}>
+                    <span style={{
+                      width: 6, height: 6, borderRadius: "50%",
+                      background: WH_DOT[p.webhookStatus],
+                      display: "inline-block", marginRight: 4, verticalAlign: "middle",
+                    }} />
+                    {WH_LABEL[p.webhookStatus]}
+                  </div>
+                  <div style={{ fontSize: 11, color: p.color, fontWeight: 600 }}>
+                    J180: {p.rev[3].toLocaleString()}€/j
+                  </div>
                 </div>
               </div>
 
@@ -202,7 +314,8 @@ export default function App() {
                 }}>
                   <div style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>{p.detail}</div>
 
-                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {/* Tech tags + n8n link */}
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
                     {p.tech.map((t) => (
                       <span key={t} style={{
                         fontSize: 10, padding: "2px 8px",
@@ -213,8 +326,28 @@ export default function App() {
                         {t}
                       </span>
                     ))}
+                    {p.n8nUrl && (
+                      <a
+                        href={p.n8nUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                          marginLeft: "auto", fontSize: 10, padding: "2px 10px",
+                          background: "#ff6d3b18", color: "#ff6d3b",
+                          border: "0.5px solid #ff6d3b44",
+                          borderRadius: 99, textDecoration: "none", fontWeight: 600,
+                        }}
+                      >
+                        ↗ n8n workflow
+                      </a>
+                    )}
                   </div>
 
+                  {/* Live logs */}
+                  <LogFeed pool={p.logPool} color={p.color} />
+
+                  {/* Phase revenues */}
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 6 }}>
                     {["BOOT", "GROW", "SCALE", "EMPIRE"].map((ph, i) => (
                       <div key={ph} style={{
@@ -256,9 +389,9 @@ export default function App() {
                   formatter={(v) => [v.toLocaleString() + "€/j", ""]}
                   contentStyle={{ fontSize: 11, borderRadius: 8, border: "0.5px solid var(--color-border-tertiary)" }}
                 />
-                <Bar dataKey="fr"    fill="#1D9E75" stackId="a" name="FR" />
-                <Bar dataKey="en"    fill="#534AB7" stackId="a" name="EN" />
-                <Bar dataKey="de"    fill="#BA7517" stackId="a" name="DE" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="fr" fill="#1D9E75" stackId="a" name="FR" />
+                <Bar dataKey="en" fill="#534AB7" stackId="a" name="EN" />
+                <Bar dataKey="de" fill="#BA7517" stackId="a" name="DE" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -295,11 +428,11 @@ export default function App() {
               Coûts infra mensuels
             </div>
             {[
-              ["VPS Hetzner CX22",          "5.49€"],
-              ["Claude Haiku (9 scripts/j)", "~0.50€"],
-              ["ElevenLabs Starter",         "5€"],
-              ["Make.com Free",              "0€"],
-              ["TOTAL",                      "~11€"],
+              ["VPS Hetzner CX22",           "5.49€"],
+              ["Claude Haiku (9 scripts/j)",  "~0.50€"],
+              ["ElevenLabs Starter",          "5€"],
+              ["Make.com Free",               "0€"],
+              ["TOTAL",                       "~11€"],
             ].map(([k, v]) => (
               <div key={k} style={{
                 display: "flex", justifyContent: "space-between",
@@ -307,7 +440,7 @@ export default function App() {
                 borderBottom: k !== "TOTAL" ? "0.5px solid var(--color-border-tertiary)" : "none",
                 fontWeight: k === "TOTAL" ? 700 : 400,
               }}>
-                <span style={{ fontSize: 12, color: "var(--color-text-primary)" }}>{k}</span>
+                <span style={{ fontSize: 12 }}>{k}</span>
                 <span style={{ fontSize: 12, color: k === "TOTAL" ? "#1D9E75" : "var(--color-text-secondary)" }}>
                   {v}/mois
                 </span>
@@ -320,8 +453,6 @@ export default function App() {
       {/* SETUP */}
       {tab === "setup" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-
-          {/* Progress bar */}
           <div style={{
             background: "var(--color-background-primary)",
             border: "0.5px solid var(--color-border-tertiary)",
@@ -341,36 +472,25 @@ export default function App() {
             </div>
           </div>
 
-          {/* Checklist */}
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {steps.map((s, i) => (
-              <div
-                key={i}
-                onClick={() => toggleStep(i)}
-                style={{
-                  display: "flex", gap: 10, alignItems: "center",
-                  padding: "10px 14px",
-                  background: "var(--color-background-primary)",
-                  border: "0.5px solid var(--color-border-tertiary)",
-                  borderRadius: "var(--border-radius-md)",
-                  borderLeft: `3px solid ${s.done ? "#1D9E75" : "var(--color-border-tertiary)"}`,
-                  cursor: "pointer",
-                  opacity: s.done ? 0.75 : 1,
-                }}
-              >
+              <div key={i} onClick={() => toggleStep(i)} style={{
+                display: "flex", gap: 10, alignItems: "center",
+                padding: "10px 14px",
+                background: "var(--color-background-primary)",
+                border: "0.5px solid var(--color-border-tertiary)",
+                borderRadius: "var(--border-radius-md)",
+                borderLeft: `3px solid ${s.done ? "#1D9E75" : "var(--color-border-tertiary)"}`,
+                cursor: "pointer", opacity: s.done ? 0.75 : 1,
+              }}>
                 <span style={{ fontSize: 14 }}>{s.done ? "✅" : "⬜"}</span>
-                <span style={{
-                  fontSize: 12,
-                  color: "var(--color-text-primary)",
-                  textDecoration: s.done ? "line-through" : "none",
-                }}>
+                <span style={{ fontSize: 12, textDecoration: s.done ? "line-through" : "none" }}>
                   {i + 1}. {s.label}
                 </span>
               </div>
             ))}
           </div>
 
-          {/* .env block */}
           <div style={{
             background: "var(--color-background-primary)",
             border: "0.5px solid var(--color-border-tertiary)",
@@ -385,24 +505,19 @@ export default function App() {
               <span style={{ fontSize: 11, fontWeight: 600, color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
                 .env — Variables requises
               </span>
-              <button
-                onClick={copy}
-                style={{
-                  fontSize: 10, padding: "3px 10px", fontFamily: "inherit",
-                  background: copied ? "#E1F5EE" : "var(--color-background-secondary)",
-                  color: copied ? "#1D9E75" : "var(--color-text-secondary)",
-                  border: "0.5px solid var(--color-border-secondary)",
-                  borderRadius: "var(--border-radius-sm)", cursor: "pointer",
-                }}
-              >
+              <button onClick={copy} style={{
+                fontSize: 10, padding: "3px 10px", fontFamily: "inherit",
+                background: copied ? "#E1F5EE" : "var(--color-background-secondary)",
+                color: copied ? "#1D9E75" : "var(--color-text-secondary)",
+                border: "0.5px solid var(--color-border-secondary)",
+                borderRadius: "var(--border-radius-sm)", cursor: "pointer",
+              }}>
                 {copied ? "✅ Copié" : "Copier"}
               </button>
             </div>
             <pre style={{
               padding: "12px 14px", fontSize: 11, lineHeight: 1.7,
-              fontFamily: "monospace",
-              background: "#1a1a2e",
-              color: "#a8e6cf",
+              fontFamily: "monospace", background: "#1a1a2e", color: "#a8e6cf",
               overflowX: "auto",
             }}>
               {ENV_TEMPLATE}
