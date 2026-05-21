@@ -1,0 +1,42 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -m json.tool *)",
+      "Bash(jq * workflows/*.json)",
+      "Bash(jq . workflows/*.json)",
+      "Bash(./scripts/validate-workflow.sh*)",
+      "Bash(./scripts/setup-hooks.sh)",
+      "Bash(git diff --stat*)",
+      "Bash(git diff HEAD*)",
+      "Bash(git log --oneline*)",
+      "Bash(git status)",
+      "Bash(git log -1*)",
+      "Bash(cat workflows/*.json)",
+      "Bash(ls -la *)"
+    ],
+    "deny": []
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'if [ -f workflows/n8n-affiliate-workflow.json ]; then python3 -m json.tool workflows/n8n-affiliate-workflow.json > /dev/null 2>&1 && echo \"[Hook] ✅ n8n workflow JSON valide\" || echo \"[Hook] ⚠️  ATTENTION: n8n workflow JSON invalide!\"; fi'"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'CHANGES=$(git diff --stat 2>/dev/null | tail -1); if [ -n \"$CHANGES\" ]; then echo \"[Claude Code] Session terminée. Changements non commités: $CHANGES\"; fi'"
+          }
+        ]
+      }
+    ]
+  }
+}

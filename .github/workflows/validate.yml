@@ -1,0 +1,68 @@
+name: Validate n8n Workflow
+
+on:
+  push:
+    paths:
+      - 'workflows/**.json'
+  pull_request:
+    paths:
+      - 'workflows/**.json'
+
+jobs:
+  validate:
+    name: Validate n8n JSON
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install jq
+        run: sudo apt-get install -y jq
+
+      - name: Validate JSON syntax
+        run: |
+          echo "=== Validation syntaxe JSON ==="
+          python3 -m json.tool workflows/n8n-affiliate-workflow.json > /dev/null
+          echo "✅ JSON syntaxe valide"
+
+      - name: Validate n8n structure
+        run: |
+          echo "=== Validation structure n8n ==="
+          WORKFLOW="workflows/n8n-affiliate-workflow.json"
+
+          # Champs obligatoires
+          for field in nodes connections settings; do
+            jq -e ".$field" "$WORKFLOW" > /dev/null || (echo "❌ Champ manquant: .$field" && exit 1)
+            echo "✅ Champ présent: .$field"
+          done
+
+          # Nombre de nœuds
+          NODE_COUNT=$(jq '.nodes | length' "$WORKFLOW")
+          echo "📊 Nœuds détectés: $NODE_COUNT"
+          [ "$NODE_COUNT" -ge 10 ] || (echo "❌ Workflow trop court ($NODE_COUNT nœuds)" && exit 1)
+          echo "✅ Nombre de nœuds valide"
+
+          # Schedule Trigger obligatoire
+          jq -e '.nodes[] | select(.type == "n8n-nodes-base.scheduleTrigger")' "$WORKFLOW" > /dev/null \
+            || (echo "❌ Schedule Trigger manquant" && exit 1)
+          echo "✅ Schedule Trigger présent"
+
+          # Pas de credentials exposés dans le JSON
+          if jq -r '.. | strings' "$WORKFLOW" | grep -qE 'sk-ant-|Bearer [A-Za-z0-9]{20}'; then
+            echo "❌ Credentials potentiellement exposés dans le workflow!"
+            exit 1
+          fi
+          echo "✅ Pas de credentials exposés"
+
+      - name: Report
+        if: success()
+        run: |
+          NODE_COUNT=$(jq '.nodes | length' workflows/n8n-affiliate-workflow.json)
+          WORKFLOW_NAME=$(jq -r '.name' workflows/n8n-affiliate-workflow.json)
+          echo ""
+          echo "========================================"
+          echo "✅ Workflow valide et prêt pour import"
+          echo "   Nom: $WORKFLOW_NAME"
+          echo "   Nœuds: $NODE_COUNT"
+          echo "========================================"

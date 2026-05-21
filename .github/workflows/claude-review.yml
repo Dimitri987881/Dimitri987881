@@ -1,0 +1,97 @@
+name: Claude Review (PR)
+
+on:
+  pull_request:
+    paths:
+      - 'workflows/**.json'
+    types: [opened, synchronize]
+
+jobs:
+  claude-review:
+    name: Analyse Claude du workflow modifié
+    runs-on: ubuntu-latest
+    # Nécessite le secret ANTHROPIC_API_KEY dans les Settings GitHub du repo
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get install -y jq
+          pip install anthropic
+
+      - name: Extract workflow diff
+        id: diff
+        run: |
+          DIFF=$(git diff HEAD~1 -- workflows/n8n-affiliate-workflow.json | head -c 6000)
+          echo "diff<<EOF" >> $GITHUB_OUTPUT
+          echo "$DIFF" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Analyse via Claude API
+        id: review
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          python3 << 'PYTHON'
+          import anthropic
+          import os
+
+          diff = """${{ steps.diff.outputs.diff }}"""
+
+          if not diff.strip():
+              print("Pas de diff significatif détecté.")
+              with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+                  f.write("review=Pas de changement significatif dans le workflow.\n")
+              exit(0)
+
+          client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+
+          message = client.messages.create(
+              model="claude-opus-4-7",
+              max_tokens=1024,
+              messages=[
+                  {
+                      "role": "user",
+                      "content": f"""Tu es un expert n8n et automation. Analyse ce diff d'un workflow n8n d'affiliation (Reddit/Google Trends → Claude → Twitter/WordPress/Facebook/Mailchimp) et réponds en français de manière concise.
+
+          ```diff
+          {diff}
+          ```
+
+          Format de réponse:
+          ## Résumé des changements
+          <2-3 phrases>
+
+          ## Risques identifiés
+          <liste à puces ou "Aucun risque détecté">
+
+          ## Recommandations
+          <liste à puces ou "Aucune recommandation">"""
+                  }
+              ]
+          )
+
+          review = message.content[0].text
+          print(review)
+
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write(f"review<<REVIEW_EOF\n{review}\nREVIEW_EOF\n")
+          PYTHON
+
+      - name: Post review comment on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const review = `${{ steps.review.outputs.review }}`;
+            const body = `## 🤖 Analyse Claude du Workflow n8n\n\n${review}\n\n---\n*Généré automatiquement par Claude Code CI*`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
